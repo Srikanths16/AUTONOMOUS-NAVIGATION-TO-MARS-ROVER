@@ -1,0 +1,61 @@
+terrain=im2bw(imread('terrain5.bmp')); 
+source=[10 10]; 
+goal=[246 246]; 
+stepsize=20; 
+disTh=20; 
+maxFailedAttempts = 10000;
+display=true; 
+tic;
+if ~feasiblePoint(source,terrain), error('source lies on an obstacle or outside map'); end
+if ~feasiblePoint(goal,terrain), error('goal lies on an obstacle or outside map'); end
+if display, imshow(terrain);rectangle('position',[1 1 size(terrain)-1],'edgecolor','k'); end
+RRTree=double([source -1]); 
+failedAttempts=0;
+counter=0;
+pathFound=false;
+while failedAttempts<=maxFailedAttempts 
+ if rand < 0.5,
+ sample=rand(1,2) .* size(terrain);
+ else
+ sample=goal;
+ end
+ [A, I]=min( distanceCost(RRTree(:,1:2),sample) ,[],1); 
+ closestNode = RRTree(I(1),1:2);
+ theta=atan2(sample(1)-closestNode(1),sample(2)-closestNode(2)); 
+ newPoint = double(int32(closestNode(1:2) + stepsize * [sin(theta) cos(theta)]));
+ if ~checkPath(closestNode(1:2), newPoint, terrain) 
+ failedAttempts=failedAttempts+1;
+ continue;
+ end
+ if distanceCost(newPoint,goal)<disTh, 
+pathFound=true;break; end
+ [A, I2]=min( distanceCost(RRTree(:,1:2),newPoint) ,[],1);
+ if distanceCost(newPoint,RRTree(I2(1),1:2))<disTh, 
+failedAttempts=failedAttempts+1;continue; end
+ RRTree=[RRTree;newPoint I(1)];
+ failedAttempts=0;
+ if display, 
+ 
+line([closestNode(2);newPoint(2)],[closestNode(1);newPoint(1)
+]);
+ counter=counter+1;M(counter)=getframe;
+ end
+end
+if display 
+ disp('click/press any key');
+ waitforbuttonpress; 
+end
+if ~pathFound, error('no path found. maximum attempts reached'); end
+path=[goal];
+prev=I(1);
+while prev>0
+ path=[RRTree(prev,1:2);path];
+ prev=RRTree(prev,3);
+end
+pathLength=0;
+for i=1:length(path)-1, 
+pathLength=pathLength+distanceCost(path(i,1:2),path(i+1,1:2));
+ end
+fprintf('processing time=%d \nPath Length=%d \n\n', toc,pathLength); 
+imshow(terrain);rectangle('position',[1 1 size(terrain)-1],'edgecolor','k');
+line(path(:,2),path(:,1));
